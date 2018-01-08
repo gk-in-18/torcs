@@ -12,89 +12,70 @@ import torcs.scr.SensorModel;
  */
 public class SimpleDriver extends Driver {
 
-	// counting each time that control is called
-	private int tickcounter = 0;
+  // counting each time that control is called
+  private int tickcounter = 0;
 
-	public Action control(SensorModel sensorModel) {
+  public Action control(SensorModel m) {
 
-		// adjust tick counter
-		tickcounter++;
+    // adjust tick counter
+    tickcounter++;
 
-		// check, if we just started the race
-		if (tickcounter == 1) {
-			System.out.println("This is Simple Driver on track "
-					+ getTrackName());
-			System.out.println("This is a race "
-					+ (damage ? "with" : "without") + " damage.");
-		}
+    // check, if we just started the race
+    if (tickcounter == 1) {
+      System.out.println("This is Simple Driver on track "
+          + getTrackName());
+      System.out.println("This is a race "
+          + (damage ? "with" : "without") + " damage.");
+    }
 
-		double[] trackedgeSensors = sensorModel.getTrackEdgeSensors();
+    // create new action object to send our commands to the server
+    Action action = new Action();
 
-		// create new action object to send our commands to the server
-		Action action = new Action();
+    // ---------------- compute target speed ----------------------
 
-		// ---------------- compute wanted speed ----------------------
+    // very basic behaviour. stay safe
+    double targetSpeed = 50;
 
-		double maxDistance = trackedgeSensors[0];
-		for (double d : trackedgeSensors) {
-			maxDistance = Math.max(maxDistance, d);
-		}
-		double targetSpeed = 14.4 * Math.sqrt(maxDistance);
+    /*
+     * ----------------------- control velocity --------------------
+     */
 
-		/*
-		 * ----------------------- control velocity --------------------
-		 */
+    // simply accelerate until we reach our target speed.
+    if (m.speed < targetSpeed) {
+      action.accelerate = Math.min((targetSpeed - m.speed) / 10, 1);
+    } else {
+      action.brake = Math.min((m.speed - targetSpeed) / 10, 1);
+    }
+    assert action.brake * action.accelerate < 0.1;
 
-		// simply accelerate until we reach our target speed.
-		double currentSpeed = sensorModel.getSpeed();
-		if (currentSpeed < targetSpeed) {
-			action.accelerate = Math.min((targetSpeed - currentSpeed) / 10, 1);
-		} else {
-			action.brake = Math.min((currentSpeed - targetSpeed) / 10, 1);
-		}
-		assert action.brake * action.accelerate < 0.1;
+    // ------------------- control gear ------------------------
 
-		// ------------------- control gear ------------------------
+    // go in second gear
+    action.gear = 2;
 
-		int currentGear = sensorModel.getGear();
-		if (action.accelerate > 0 && sensorModel.getRPM() > 9000
-				&& currentGear < 6) {
-			action.gear = currentGear + 1;
-		} else if (action.brake > 0 && sensorModel.getRPM() < 6000
-				&& currentGear > 1) {
-			action.gear = currentGear - 1;
-		} else if (sensorModel.getRPM() < 3000 && currentGear > 1) {
-			action.gear = currentGear - 1;
-		} else {
-			action.gear = currentGear;
-		}
+    /*
+     * ----------------------- control steering ---------------------
+     */
 
-		/*
-		 * ----------------------- control steering ---------------------
-		 */
+    double distanceLeft = m.trackEdgeSensors[0];
+    double distanceRight = m.trackEdgeSensors[18];
+    
+    // follow the track
+    action.steering = m.angleToTrackAxis * 0.75;
 
-		double trackAngle = sensorModel.getAngleToTrackAxis();
-		double distanceLeft = trackedgeSensors[0];
-		double distanceRight = trackedgeSensors[18];
-		// System.out.println("trackAngle" + trackAngle);
-		// System.out.println(Arrays.toString(trackedgeSensors));
+    // avoid to come too close to the edges
+    if (distanceLeft < 3.0) {
+      action.steering -= (5.0 - distanceLeft) * 0.05;
+    }
+    if (distanceRight < 3.0) {
+      action.steering += (5.0 - distanceRight) * 0.05;
+    }
 
-		// follow the track
-		action.steering = trackAngle * 0.75;
+    // return the action
+    return action;
+  }
 
-		// avoid to come too close to the edges
-		if (distanceLeft < 3.0) {
-			action.steering -= (5.0 - distanceLeft) * 0.05;
-		}
-		if (distanceRight < 3.0) {
-			action.steering += (5.0 - distanceRight) * 0.05;
-		}
-
-		// return the action
-		return action;
-	}
-
-	public void shutdown() {
-		System.out.println("Bye bye!");
-	}
+  public void shutdown() {
+    System.out.println("Bye bye!");
+  }
 }
