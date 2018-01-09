@@ -4,7 +4,7 @@ The SCR Framework and a simple driver
 
 1. Compile java client and driver:
 
-H:\torcs-master\src> javac torcs/simple/SimpleDriver
+H:\torcs-master\src> javac torcs/simple/SimpleDriver.java
 
 2. Start java client and driver
 
